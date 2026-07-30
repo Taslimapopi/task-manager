@@ -2,9 +2,10 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-   "scripts": {
-    "dev": "node --env-file=.env --watch server.js"
+  "main": "server.ts",
+  "scripts": {
+    "dev": "tsx watch server.ts --env-file=.env",
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",
@@ -13,5 +14,9 @@
   "dependencies": {
     "express": "^5.2.1",
     "mongoose": "^9.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "typescript": "^7.0.2"
   }
 }
