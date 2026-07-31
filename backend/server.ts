@@ -1,7 +1,19 @@
+import { Server } from "node:http";
+import { logger } from "./src/config/logger";
+
 let isShuttingDown = false;
+
+const shutDownTimeOut = 10000
+
+let server : Server | null =null
 
 const shutDown = async (signal : string) : Promise<void>{
     if (isShuttingDown) return
     isShuttingDown = true
-    console.log('shutting Down gracefully...')
+    logger.info({signal},'shutting Down gracefully...')
+    const forceTimer = setTimeout(()=>{
+        logger.error({timeOut : shutDownTimeOut},'graceful shutdown timeout')
+        process.exit(1)
+    },shutDownTimeOut)
+    forceTimer.unref()
 }
