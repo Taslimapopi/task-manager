@@ -1,5 +1,5 @@
 import { Server } from "node:http";
-import { logger } from "./src/config/logger";
+import { logger } from "./src/utils/logger";
 
 let isShuttingDown = false;
 
@@ -16,4 +16,19 @@ const shutDown = async (signal : string) : Promise<void>{
         process.exit(1)
     },shutDownTimeOut)
     forceTimer.unref()
+    try{
+
+        if(server){
+            server.closeIdleConnections()
+            await new Promise<void>((resolve, reject)=>{
+                server!.close(err=>(err?reject(err):resolve()))
+
+            })
+
+            logger.info('http server closed')
+        }
+
+    }catch(){
+
+    }
 }
