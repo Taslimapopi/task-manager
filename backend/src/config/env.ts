@@ -20,10 +20,15 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+const data = parsed.data
+
 export type parsedEnv = z.infer<typeof envSchema>
 
 export type Env = Readonly<parsedEnv & {
   readonly isDevelopment : boolean,
 }>
 
-export const env: Env = Object.freeze(parsed.data);
+export const env: Env = Object.freeze({ 
+  ...data ,
+  isDevelopment : data.NODE_ENV === 'development'
+});
