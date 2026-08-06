@@ -4,18 +4,17 @@ import { connectDb, disconnectDb } from "./src/config/db.ts";
 import { app } from "./src/app.ts";
 import { env } from "./src/config/env.ts";
 
-const listen_errors : Readonly<Record<string, string>> = {
-    EADDRINUSE : 'is already in use',
-    EACCES : 'required elevated priviledge'
-
-}
+const listen_errors: Readonly<Record<string, string>> = {
+  EADDRINUSE: "is already in use",
+  EACCES: "required elevated priviledge",
+};
 
 let isShuttingDown = false;
 
 const shutDownTimeOut = 10000;
 const keepaliveTimeOut = 65000;
-const requestTimeout = 30000
-const headersTimeout = keepaliveTimeOut + 5000
+const requestTimeout = 30000;
+const headersTimeout = keepaliveTimeOut + 5000;
 
 let server: ReturnType<typeof createServer> | null = null;
 
@@ -63,13 +62,16 @@ const startServer = async (): Promise<void> => {
 
   httpServer.keepAliveTimeout = keepaliveTimeOut;
   httpServer.headersTimeout = headersTimeout;
-  httpServer.requestTimeout = requestTimeout
+  httpServer.requestTimeout = requestTimeout;
 
   httpServer.on("error", (err: NodeJS.ErrnoException) => {
-    const listenError = listen_errors["err.code ??"]
-    logger.fatal({err, ...(listenError &&{port: env.PORT})}, listenError? `port ${env.PORT} ${listenError}`:'server encounter in a fatal error')
-
-    
+    const listenError = listen_errors["err.code ??"];
+    logger.fatal(
+      { err, ...(listenError && { port: env.PORT }) },
+      listenError
+        ? `port ${env.PORT} ${listenError}`
+        : "server encounter in a fatal error",
+    );
   });
 };
 
