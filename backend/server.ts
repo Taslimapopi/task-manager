@@ -56,6 +56,23 @@ process.once("uncaughtException", (err: Error) => {
   shutDown("uncaughtException");
 });
 
+const attachProcessHandlers = (): void => {
+  const onFatal =
+    (reason: string, level: "fatal" | "error") =>
+    (err: unknown): void => {
+      logger[level]({ err }, `${reason}-initiating shut down`);
+    };
+    process.on('uncaughtException', onFatal('uncaughtException','fatal'))
+    process.on('unhandledRejection',onFatal('unhandledRejection','error'))
+
+    const signals : NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGQUIT']
+    for ( const signal of signals) {
+      process.on(signal, ()=>{
+        logger.info({signal}, 'received termination signal')
+      })
+    }
+};
+
 const startServer = async (): Promise<void> => {
   await connectDb();
   const httpServer = createServer(app);
@@ -73,9 +90,9 @@ const startServer = async (): Promise<void> => {
         : "server encounter in a fatal error",
     );
   });
-  await new Promise<void>(resolve=>{
-    httpServer.listen(env.PORT,resolve)
-  })
+  await new Promise<void>((resolve) => {
+    httpServer.listen(env.PORT, resolve);
+  });
 };
 
 try {
