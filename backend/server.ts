@@ -73,6 +73,9 @@ const startServer = async (): Promise<void> => {
         : "server encounter in a fatal error",
     );
   });
+  await new Promise<void>(resolve=>{
+    httpServer.listen(env.PORT,resolve)
+  })
 };
 
 try {
