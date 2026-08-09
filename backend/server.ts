@@ -3,6 +3,7 @@ import { logger } from "./src/utils/logger.ts";
 import { connectDb, disconnectDb } from "./src/config/db.ts";
 import { app } from "./src/app.ts";
 import { env } from "./src/config/env.ts";
+import { setTimeout as delay } from "node:timers/promises";
 
 const listen_errors: Readonly<Record<string, string>> = {
   EADDRINUSE: "is already in use",
@@ -11,10 +12,11 @@ const listen_errors: Readonly<Record<string, string>> = {
 
 let isShuttingDown = false;
 
-const shutDownTimeOut = 10000;
+const shutDownTimeOut = 15000;
 const keepaliveTimeOut = 65000;
 const requestTimeout = 30000;
 const headersTimeout = keepaliveTimeOut + 5000;
+const drainDelay = env.isProduction ? 5000 : 0
 
 let server: ReturnType<typeof createServer> | null = null;
 
@@ -27,6 +29,10 @@ const shutDown =async (reason:string, exitCode = 0): Promise <void> =>{
     server?.closeAllConnections()
   },shutDownTimeOut)
   forceTimer.unref()
+  if(exitCode === 0 && drainDelay>0){
+    logger.info({drainDElay : drainDelay},'drainng before closing listener')
+    await delay(drainDelay)
+  }
 
 }
 
