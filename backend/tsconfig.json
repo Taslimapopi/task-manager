@@ -18,5 +18,15 @@
     "sourceMap": true
   },
   "include": ["server.ts,src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist"],
+  "paths": {
+      "@app": ["./src/app.ts"],
+      "@modules/*": ["./src/modules/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@config/*": ["./src/config/*"],
+      "@middlewares/*": ["./src/middlewares/*"],
+      "@routes/*": ["./src/routes/*"],
+      "@dts/*": ["./src/types/*"],
+      "@utils/*": ["./src/utils/*"]
+    },
 }
