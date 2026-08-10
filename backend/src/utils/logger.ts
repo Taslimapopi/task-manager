@@ -1,6 +1,6 @@
 import { env } from "../config/env";
+import pino from 'pino'
 
-import pino from "pino";
 
 const defaultLevel = env.NODE_ENV === "development" ? "debug" : "info";
 

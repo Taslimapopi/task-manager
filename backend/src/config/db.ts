@@ -1,6 +1,7 @@
 import mongoose, { ConnectOptions } from 'mongoose';
-import { logger } from '../utils/logger';
-import { env } from './env';
+import { logger } from '../utils/logger.ts';
+import { env } from './env.ts';
+
 
 mongoose.connection.on('error', err=>{
     logger.error({err}, 'mongodb connection error')

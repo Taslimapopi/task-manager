@@ -1,9 +1,10 @@
 import { createServer } from "node:http";
 import { logger } from "./src/utils/logger.ts";
-import { connectDb, disconnectDb } from "./src/config/db.ts";
-import { app } from "./src/app.ts";
 import { env } from "./src/config/env.ts";
 import { setTimeout as delay } from "node:timers/promises";
+import { connectDb } from "./src/config/db.ts";
+import { app } from "./src/app.ts";
+
 
 const listen_errors: Readonly<Record<string, string>> = {
   EADDRINUSE: "is already in use",
