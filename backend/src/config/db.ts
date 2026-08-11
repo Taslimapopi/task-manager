@@ -1,6 +1,6 @@
-import mongoose, { ConnectOptions } from 'mongoose';
-import { logger } from '../utils/logger.ts';
-import { env } from './env.ts';
+import { logger } from '@utils/logger.js';
+import mongoose, { type ConnectOptions } from 'mongoose';
+import { env } from './env.js';
 
 
 mongoose.connection.on('error', err=>{

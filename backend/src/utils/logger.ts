@@ -1,4 +1,5 @@
-import { env } from "../config/env";
+
+import { env } from '@config/env.js';
 import pino from 'pino'
 
 

@@ -15,11 +15,9 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
-    "sourceMap": true
-  },
-  "include": ["server.ts,src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "paths": {
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
       "@app": ["./src/app.ts"],
       "@modules/*": ["./src/modules/*"],
       "@shared/*": ["./src/shared/*"],
@@ -28,5 +26,8 @@
       "@routes/*": ["./src/routes/*"],
       "@dts/*": ["./src/types/*"],
       "@utils/*": ["./src/utils/*"]
-    },
+    }
+  },
+  "include": ["server.ts", "src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
