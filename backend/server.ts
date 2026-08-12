@@ -61,11 +61,9 @@ const startServer = async (): Promise<void> => {
   await connectDb();
   const httpServer = createServer(app);
   server = httpServer;
-
   httpServer.keepAliveTimeout = keepaliveTimeOut;
   httpServer.headersTimeout = headersTimeout;
   httpServer.requestTimeout = requestTimeout;
-
   httpServer.on("error", (err: NodeJS.ErrnoException) => {
     const listenError = listen_errors["err.code ??"];
     logger.fatal(
