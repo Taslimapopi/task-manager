@@ -4,7 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { logger } from "@utils/logger.js";
 import { env } from "@config/env.js";
-import { connectDb } from "@config/db.js";
+import { connectDb, disconnectDb } from "@config/db.js";
 import { app } from "@app";
 
 const listen_errors: Readonly<Record<string, string>> = {
@@ -22,6 +22,12 @@ const drainDelay = env.isProduction ? 5000 : 0;
 
 let server: ReturnType<typeof createServer> | null = null;
 
+const closeHttpServer = () =>{
+  const activeServer = server
+  if(!activeServer?.listening) return
+  activeServer.closeIdleConnections()
+}
+
 const shutDown = async (reason: string, exitCode = 0): Promise<void> => {
   if (isShuttingDown) return;
   isShuttingDown = true;
@@ -38,6 +44,11 @@ const shutDown = async (reason: string, exitCode = 0): Promise<void> => {
     logger.info({ drainDElay: drainDelay }, "drainng before closing listener");
     await delay(drainDelay);
   }
+
+  const steps : ReadonlyArray<readonly[label: string, close : ()=>Promise <void>]> = [
+    ['http server', closeHttpServer()],
+    ['database connection', disconnectDb()]
+  ]
 };
 
 const attachProcessHandlers = (): void => {
