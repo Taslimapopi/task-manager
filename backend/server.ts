@@ -6,6 +6,7 @@ import { logger } from "@utils/logger.js";
 import { env } from "@config/env.js";
 import { connectDb, disconnectDb } from "@config/db.js";
 import { app } from "@app";
+import { rejects } from "node:assert";
 
 const listen_errors: Readonly<Record<string, string>> = {
   EADDRINUSE: "is already in use",
@@ -22,10 +23,14 @@ const drainDelay = env.isProduction ? 5000 : 0;
 
 let server: ReturnType<typeof createServer> | null = null;
 
-const closeHttpServer = () =>{
+const closeHttpServer = async() : Promise<void> =>{
   const activeServer = server
   if(!activeServer?.listening) return
   activeServer.closeIdleConnections()
+  await new Promise <void>((resolve, reject)=>{
+    activeServer.close(err=>(err? reject(err):resolve()))
+  })
+  logger.info('http server closed')
 }
 
 const shutDown = async (reason: string, exitCode = 0): Promise<void> => {
@@ -46,9 +51,21 @@ const shutDown = async (reason: string, exitCode = 0): Promise<void> => {
   }
 
   const steps : ReadonlyArray<readonly[label: string, close : ()=>Promise <void>]> = [
-    ['http server', closeHttpServer()],
-    ['database connection', disconnectDb()]
+    ['http server', closeHttpServer],
+    ['database connection', disconnectDb]
   ]
+  let cleanUpFailed = false
+  for(const [label,close] of steps) {
+    try{
+      await close()
+
+    }catch(err){
+      cleanUpFailed = true
+      logger.error({err}, ` failed to close ${label}`)
+      
+    }
+  }
+  clearTimeout(forceTimer)
 };
 
 const attachProcessHandlers = (): void => {
