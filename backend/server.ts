@@ -20,8 +20,18 @@ const keepaliveTimeOut = 65000;
 const requestTimeout = 30000;
 const headersTimeout = keepaliveTimeOut + 5000;
 const drainDelay = env.isProduction ? 5000 : 0;
+const logFlushTimeOut = 500;
 
 let server: ReturnType<typeof createServer> | null = null;
+
+const exitAfterFlush  = async(code:number):Promise<never> =>{
+  await Promise.race([
+    new Promise <void>(resolve=>{
+      logger.flush(()=>resolve())
+    }),
+    delay(logFlushTimeOut)
+  ]).catch(()=>undefined)
+}
 
 const closeHttpServer = async() : Promise<void> =>{
   const activeServer = server
