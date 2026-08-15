@@ -21,38 +21,37 @@ const requestTimeout = 30000;
 const headersTimeout = 30000;
 const drainDelay = env.isProduction ? 5000 : 0;
 const logFlushTimeOut = 500;
-const connectionCheckingInterval = 5000
-let pendingExitCode = 0
+const connectionCheckingInterval = 5000;
+let pendingExitCode = 0;
 
 let server: Server | null = null;
 
-const exitAfterFlush  = async(code:number):Promise<never> =>{
+const exitAfterFlush = async (code: number): Promise<never> => {
   await Promise.race([
-    new Promise <void>(resolve=>{
-      logger.flush(()=>resolve())
+    new Promise<void>((resolve) => {
+      logger.flush(() => resolve());
     }),
-    delay(logFlushTimeOut)
-  ]).catch(()=>undefined)
+    delay(logFlushTimeOut),
+  ]).catch(() => undefined);
 
-  process.exit(code)
-}
+  process.exit(code);
+};
 
-const closeHttpServer = async() : Promise<void> =>{
-  const activeServer = server
-  if(!activeServer?.listening) return
-  activeServer.closeIdleConnections()
-  await new Promise <void>((resolve, reject)=>{
-    activeServer.close(err=>(err? reject(err):resolve()))
-  })
-  logger.info('http server closed')
-}
+const closeHttpServer = async (): Promise<void> => {
+  const activeServer = server;
+  if (!activeServer?.listening) return;
+  activeServer.closeIdleConnections();
+  await new Promise<void>((resolve, reject) => {
+    activeServer.close((err) => (err ? reject(err) : resolve()));
+  });
+  logger.info("http server closed");
+};
 
 const shutDown = async (reason: string, exitCode = 0): Promise<void> => {
-
-  if (exitCode !== 0 && pendingExitCode === 0) pendingExitCode = exitCode
+  if (exitCode !== 0 && pendingExitCode === 0) pendingExitCode = exitCode;
   if (isShuttingDown) {
-    if(exitCode!==0){
-      logger.error({reason,exitCode},'fatal error during shutting down')
+    if (exitCode !== 0) {
+      logger.error({ reason, exitCode }, "fatal error during shutting down");
     }
   }
   isShuttingDown = true;
@@ -70,30 +69,36 @@ const shutDown = async (reason: string, exitCode = 0): Promise<void> => {
     await delay(drainDelay);
   }
 
-  const steps : ReadonlyArray<readonly[label: string, close : ()=>Promise <void>]> = [
-    ['http server', closeHttpServer],
-    ['database connection', disconnectDb]
-  ]
-  let cleanUpFailed = false
-  for(const [label,close] of steps) {
-    try{
-      await close()
-
-    }catch(err){
-      cleanUpFailed = true
-      logger.error({err}, ` failed to close ${label}`)
-      
+  const steps: ReadonlyArray<
+    readonly [label: string, close: () => Promise<void>]
+  > = [
+    ["http server", closeHttpServer],
+    ["database connection", disconnectDb],
+  ];
+  let cleanUpFailed = false;
+  for (const [label, close] of steps) {
+    try {
+      await close();
+    } catch (err) {
+      cleanUpFailed = true;
+      logger.error({ err }, ` failed to close ${label}`);
     }
   }
-  clearTimeout(forceTimer)
-  await exitAfterFlush(cleanUpFailed ? 1 : pendingExitCode)
+  clearTimeout(forceTimer);
+  await exitAfterFlush(cleanUpFailed ? 1 : pendingExitCode);
 };
 
 const attachProcessHandlers = (): void => {
   const onFatal =
     (reason: string, level: "fatal" | "error") =>
     (err: unknown): void => {
-      logger[level]({ err }, `${reason}-initiating shut down`);
+      try{
+        logger[level]({ err }, `${reason}-initiating shut down`)
+      }catch{
+        try{
+          logger[level](`${reason}-initiating shut down`)
+        }catch{}
+      }
     };
   process.on("uncaughtException", onFatal("uncaughtException", "fatal"));
   process.on("unhandledRejection", onFatal("unhandledRejection", "error"));
@@ -105,6 +110,16 @@ const attachProcessHandlers = (): void => {
     });
   }
 };
+
+const listen  = (httpServer : Server, port : number) : Promise<void>{
+  new Promise <void> ((resolve, reject)=>{
+    httpServer.once('error',reject)
+    httpServer.listen(port,()=>{
+      httpServer.removeListener('error',reject)
+      resolve()
+    })
+  })
+}
 
 const startServer = async (): Promise<void> => {
   await connectDb();
