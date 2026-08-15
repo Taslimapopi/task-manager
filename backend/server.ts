@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import { createServer, Server } from "node:http";
 
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -18,11 +18,13 @@ let isShuttingDown = false;
 const shutDownTimeOut = 15000;
 const keepaliveTimeOut = 65000;
 const requestTimeout = 30000;
-const headersTimeout = keepaliveTimeOut + 5000;
+const headersTimeout = 30000;
 const drainDelay = env.isProduction ? 5000 : 0;
 const logFlushTimeOut = 500;
+const connectionCheckingInterval = 5000
+let pendingExitCode = 0
 
-let server: ReturnType<typeof createServer> | null = null;
+let server: Server | null = null;
 
 const exitAfterFlush  = async(code:number):Promise<never> =>{
   await Promise.race([
@@ -31,6 +33,8 @@ const exitAfterFlush  = async(code:number):Promise<never> =>{
     }),
     delay(logFlushTimeOut)
   ]).catch(()=>undefined)
+
+  process.exit(code)
 }
 
 const closeHttpServer = async() : Promise<void> =>{
@@ -44,7 +48,13 @@ const closeHttpServer = async() : Promise<void> =>{
 }
 
 const shutDown = async (reason: string, exitCode = 0): Promise<void> => {
-  if (isShuttingDown) return;
+
+  if (exitCode !== 0 && pendingExitCode === 0) pendingExitCode = exitCode
+  if (isShuttingDown) {
+    if(exitCode!==0){
+      logger.error({reason,exitCode},'fatal error during shutting down')
+    }
+  }
   isShuttingDown = true;
   logger.info({ reason, exitCode }, "shutting down");
   const forceTimer = setTimeout(() => {
@@ -76,6 +86,7 @@ const shutDown = async (reason: string, exitCode = 0): Promise<void> => {
     }
   }
   clearTimeout(forceTimer)
+  await exitAfterFlush(cleanUpFailed ? 1 : pendingExitCode)
 };
 
 const attachProcessHandlers = (): void => {
