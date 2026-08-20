@@ -10,7 +10,14 @@ const req_timeout = 30000;
 
 let shuttingDown = false;
 let server: Server | null = null;
+let httpClosePromise : Promise<void> | null = null
 
+const closeHttpServer= async() : Promise <void> =>{
+  if(httpClosePromise) return httpClosePromise
+
+  const activeServer = server
+  if(activeServer?.listening) return
+}
 const listen = (httpServer : Server, port : number)=>{
   return new Promise <void> ((resolve, reject)=>{
     httpServer.once('error',reject)
