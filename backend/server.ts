@@ -1,5 +1,7 @@
 import { app } from "@app";
 import { connectDb } from "@config/db.js";
+import { env } from "@config/env.js";
+import { listenServer } from "@utils/http.server.js";
 import { logger } from "@utils/logger.js";
 import { resolve } from "node:dns";
 import { createServer, type Server } from "node:http";
@@ -10,9 +12,11 @@ const headers_timeout = 30000;
 const req_timeout = 30000;
 const idle_sweep_interval = 1000
 
+
 let shuttingDown = false;
 let server: Server | null = null;
 let httpClosePromise: Promise<void> | null = null;
+let listenPromise : Promise <void> | null = null
 
 const closeHttpServer = async (): Promise<void> => {
   if (httpClosePromise) return httpClosePromise;
@@ -61,4 +65,5 @@ const startServer = async (): Promise<void> => {
   httpServer.headersTimeout = headers_timeout;
   httpServer.requestTimeout = req_timeout;
   if (shuttingDown) return;
+  const pendingListen = (listenPromise = listenServer(httpServer, env.PORT))
 };
