@@ -66,4 +66,9 @@ const startServer = async (): Promise<void> => {
   httpServer.requestTimeout = req_timeout;
   if (shuttingDown) return;
   const pendingListen = (listenPromise = listenServer(httpServer, env.PORT))
+  try{
+    await pendingListen
+  }finally{
+    if(listenPromise === pendingListen) listenPromise = null
+  }
 };
