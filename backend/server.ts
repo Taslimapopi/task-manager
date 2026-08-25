@@ -5,6 +5,7 @@ import { listenServer } from "@utils/http.server.js";
 import { logger } from "@utils/logger.js";
 import { resolve } from "node:dns";
 import { createServer, type Server } from "node:http";
+import { unknown } from "zod";
 
 const connection_checking_interval = 5000;
 const keep_alive_timeout = 65000;
@@ -18,12 +19,30 @@ let server: Server | null = null;
 let httpClosePromise: Promise<void> | null = null;
 let listenPromise : Promise <void> | null = null
 
+
+
+const logCrashSafely = (
+  level : 'fatal' | 'error',
+  binding : Record<string, unknown>,
+  message : string
+) : void =>{
+  try{
+    logger[level](binding, message)
+  }catch{
+    try{
+      logger[level](`${message} error details unserializable`)
+    }catch{}
+  }
+}
+
 const closeHttpServer = async (): Promise<void> => {
   if (httpClosePromise) return httpClosePromise;
 
   const activeServer = server;
-  if (activeServer?.listening) return;
+  if (!activeServer) return;
   httpClosePromise = (async():Promise <void>=>{
+    if (listenPromise) await listenPromise
+    if(activeServer?.listening) return
     const idleSweeper = setInterval(()=>{
       activeServer?.closeIdleConnections
     },idle_sweep_interval)
@@ -71,4 +90,11 @@ const startServer = async (): Promise<void> => {
   }finally{
     if(listenPromise === pendingListen) listenPromise = null
   }
+  if(shuttingDown){
+    await closeHttpServer()
+    return
+  }
+  httpServer.on('error', (err : NodeJS.ErrnoException)=>{
+    logCrashSafely('fatal', {err}, 'server encountered a fatal error')
+  })
 };
