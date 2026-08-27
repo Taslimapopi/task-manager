@@ -1,24 +1,27 @@
 import { app } from "@app";
-import { connectDb } from "@config/db.js";
+import { connectDb, disconnectDb } from "@config/db.js";
 import { env } from "@config/env.js";
 import { listenServer } from "@utils/http.server.js";
 import { logger } from "@utils/logger.js";
-import { resolve } from "node:dns";
 import { createServer, type Server } from "node:http";
-import { unknown } from "zod";
+import {setTimeout as delay} from 'node:timers/promises'
 
 const connection_checking_interval = 5000;
 const keep_alive_timeout = 65000;
 const headers_timeout = 30000;
 const req_timeout = 30000;
 const idle_sweep_interval = 1000
+const drainDelay = env.isProduction ? 5000 : 0
+const shutdownTimeOut = 35000
 
 
 let shuttingDown = false;
 let server: Server | null = null;
 let httpClosePromise: Promise<void> | null = null;
-let listenPromise : Promise <void> | null = null
-
+let listenPromise : Promise <void> | null = null;
+let exitPromise : Promise <never> | null = null;
+let pendingExitCode = 0
+let drainController : AbortController | null = null
 
 
 const logCrashSafely = (
@@ -67,6 +70,61 @@ const listen = (httpServer: Server, port: number) => {
     });
   });
 };
+
+const initiateShutdown = (reason: string, exitCode : number): void =>{
+
+}
+
+const shutdown =async (reason :string, exitCode : number) :Promise <void> =>{
+  if (exitCode !== 0 && pendingExitCode === 0) pendingExitCode = exitCode
+  if (shuttingDown){
+    if (exitCode!==0){
+      drainController?.abort()
+      server?.closeAllConnections()
+      logger.error({reason, exitCode},'fatal error during shutdown')
+    }
+    return
+  }
+  shuttingDown = true
+  logger.info({reason, exitCode}, 'shutting down')
+  if(pendingExitCode === 0 && drainDelay > 0){
+    logger.info({drainDelay : drainDelay}, 'draining before shutting down')
+    drainController = new AbortController()
+    try{
+      await delay(drainDelay,undefined,{signal : drainController.signal})
+    }catch(err){
+      if(!drainController.signal.aborted) throw err
+    }finally{
+      drainController = null
+    }
+  }
+  if(pendingExitCode !== 0) server?.closeAllConnections()
+    const steps: ReadonlyArray<readonly [label: string, close: () => Promise<void>]> = [
+    ['HTTP server', closeHttpServer],
+    ['database connection', disconnectDb]
+    ]
+
+    const forceTimer = setTimeout(()=>{
+      server?.closeAllConnections()
+      try{
+        logger.error({timeoutMs : shutdownTimeOut }, 'gracefully shutdown time out, forcing exit')
+      }catch{}
+    },shutdownTimeOut)
+    for (const [label, close] of steps) {
+    try {
+      await close()
+    } catch (err) {
+      pendingExitCode = 1
+      logger.error({ err }, `Failed to close ${label}`);
+    }
+  }
+  clearTimeout(forceTimer)
+}
+
+const exitAfterFlash = (code : number) : Promise <void>=>{
+  if(code!==0) pendingExitCode = code
+  
+}
 
 const startServer = async (): Promise<void> => {
   await connectDb();
