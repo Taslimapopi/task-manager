@@ -3,6 +3,7 @@ import { connectDb, disconnectDb } from "@config/db.js";
 import { env } from "@config/env.js";
 import { listenServer } from "@utils/http.server.js";
 import { logger } from "@utils/logger.js";
+import { resolve } from "node:dns";
 import { createServer, type Server } from "node:http";
 import {setTimeout as delay} from 'node:timers/promises'
 
@@ -13,6 +14,7 @@ const req_timeout = 30000;
 const idle_sweep_interval = 1000
 const drainDelay = env.isProduction ? 5000 : 0
 const shutdownTimeOut = 35000
+const logFlushTimeOut = 500
 
 
 let shuttingDown = false;
@@ -72,7 +74,12 @@ const listen = (httpServer: Server, port: number) => {
 };
 
 const initiateShutdown = (reason: string, exitCode : number): void =>{
-
+  void shutdown(reason, exitCode).catch((err:unknown)=> {
+    pendingExitCode = 1
+    drainController?.abort()
+    logCrashSafely('fatal', {err, reason}, 'shutdown failed')
+    void exitAfterFlush(1)
+  })
 }
 
 const shutdown =async (reason :string, exitCode : number) :Promise <void> =>{
@@ -121,9 +128,18 @@ const shutdown =async (reason :string, exitCode : number) :Promise <void> =>{
   clearTimeout(forceTimer)
 }
 
-const exitAfterFlash = (code : number) : Promise <void>=>{
+const exitAfterFlush = (code : number) : Promise <void>=>{
   if(code!==0) pendingExitCode = code
-  
+  exitPromise ??= (async():Promise<never>=>{
+    await Promise.race([
+      new Promise <void> ((resolve)=>{
+        logger.flush(()=>resolve())
+      }), delay(logFlushTimeOut)
+    ]).catch(()=>undefined)
+    process.exit(pendingExitCode)
+  })()
+  return exitPromise
+
 }
 
 const startServer = async (): Promise<void> => {
