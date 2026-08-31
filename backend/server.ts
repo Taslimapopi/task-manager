@@ -3,7 +3,6 @@ import { connectDb, disconnectDb } from "@config/db.js";
 import { env } from "@config/env.js";
 import { listenServer } from "@utils/http.server.js";
 import { logger } from "@utils/logger.js";
-import { resolve } from "node:dns";
 import { createServer, type Server } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -133,16 +132,20 @@ const shutdown = async (reason: string, exitCode: number): Promise<void> => {
     }
   }
   clearTimeout(forceTimer);
+  await exitAfterFlush(pendingExitCode)
 };
 
 const exitAfterFlush = (code: number): Promise<void> => {
   if (code !== 0) pendingExitCode = code;
   exitPromise ??= (async (): Promise<never> => {
     await Promise.race([
+
       new Promise<void>((resolve) => {
         logger.flush(() => resolve());
       }),
+
       delay(logFlushTimeOut),
+
     ]).catch(() => undefined);
     process.exit(pendingExitCode);
   })();
