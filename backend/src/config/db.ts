@@ -46,12 +46,27 @@ const discardClient = async () : Promise <void> =>{
     }
 }
 
-const openConnection = async () : Promise <void> {
+const assertTransactionTopology = async () : Promise <void> =>{
+    let hello : Record<string, unknown> | undefined 
+    try {
+    hello = await mongoose.connection.db?.admin()
+    .command({hello : 1},{timeoutMS : server_selection_timeout})
+ } catch  {
+    throw new Error('failed to verify mongodb deployment topology')
+ }
+ if (hello?.setName || hello?.msg === 'isdbgrid') return
+ throw new Error('Production MongoDB must be a replica set or a sharded cluster — a standalone server cannot run the transactions this service depends on')
+}
+
+const openConnection = async () : Promise <void> => {
     try{
     mongoose.connect(env.MONGODB_URI,connection_options)
 }catch{
     await discardClient()
     throw new Error('failed to established mongodb connections')
+}
+if (env.isProduction){
+ 
 }
 
 }

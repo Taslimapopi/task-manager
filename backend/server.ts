@@ -135,7 +135,7 @@ const shutdown = async (reason: string, exitCode: number): Promise<void> => {
   await exitAfterFlush(pendingExitCode)
 };
 
-const exitAfterFlush = (code: number): Promise<void> => {
+const exitAfterFlush = (code: number): Promise<never> => {
   if (code !== 0) pendingExitCode = code;
   exitPromise ??= (async (): Promise<never> => {
     await Promise.race([
