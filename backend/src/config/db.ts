@@ -107,3 +107,22 @@ export const connectDb = async (): Promise<void> => {
   void attempt.then(clearThisAttempt, clearThisAttempt);
   return attempt;
 };
+
+const closeConnection = async (): Promise<void> => {
+  const pending = connectionPromise
+  connectionPromise = null
+  if (pending) await pending.catch(() => undefined)
+  await mongoose.connection.close()
+  logger.info('mongodb cleanup completed')
+}
+
+export const disconnectDb = async () => {
+ if (closingPromise) return closingPromise
+  const closeAttempt = (closingPromise = Promise.resolve().then(closeConnection))
+  try {
+    await closeAttempt
+  } finally {
+    if (closingPromise === closeAttempt) {
+      closingPromise = null
+    }
+}

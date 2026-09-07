@@ -1,5 +1,5 @@
 import { app } from "@app";
-import { connectDb} from "@config/db.js";
+import {connectDb, disconnectDb} from "@config/db.js";
 import { env } from "@config/env.js";
 import { listenServer } from "@utils/http.server.js";
 
@@ -113,6 +113,7 @@ const shutdown = async (reason: string, exitCode: number): Promise<void> => {
     readonly [label: string, close: () => Promise<void>]
   > = [
     ["HTTP server", closeHttpServer],
+      ["connect db", disconnectDb]
    
   ];
 
