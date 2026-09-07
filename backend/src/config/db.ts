@@ -125,4 +125,5 @@ export const disconnectDb = async () => {
     if (closingPromise === closeAttempt) {
       closingPromise = null
     }
+  }
 }
