@@ -207,6 +207,11 @@ const startServer = async (): Promise<void> => {
     httpServer.headersTimeout = headers_timeout;
     httpServer.requestTimeout = req_timeout;
     if (isShuttingDown()) return;
+    const httpServerError = (err:Error) : void =>{
+        logSafely("fatal", {err}, "server encountered a fatal error");
+        initiateShutdown("serverError", 1);
+
+    }
     const pendingListen = (listenPromise = listenServer(httpServer, env.PORT));
     try {
         await pendingListen;
