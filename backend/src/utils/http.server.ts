@@ -1,19 +1,37 @@
-import type { Server } from "node:http";
+import type {Server} from "node:http";
 import type {AddressInfo} from "node:net";
 
 type ServerErrorHandler = (err : Error) => void
 
-export const listenServer = (httpServer : Server , port : number, onRunTimeError? : ServerErrorHandler): Promise <AddressInfo> =>
-    new Promise <void> ((resolve, reject)=>{
-        const onError = (err: Error) : void =>{
-            httpServer.removeListener('listening',onListening)
+const listenServer = (httpServer : Server, port : number, onRunTimeError? : ServerErrorHandler) : Promise<AddressInfo> =>{
+    new Promise <AddressInfo>((resolve, reject)=>{
+        const detachStartupListener = () : void =>{
+            httpServer.off('error', onBindError)
+
+        }
+
+        const onBindError = (err:Error): void =>{
+            detachStartupListener()
             reject(err)
         }
-        const onListening = (err : Error) : void =>{
-            httpServer.removeListener('error', onError)
-            resolve()
+
+        const onListening = () : void =>{
+            const address = httpServer.address()
+            if(address === null || typeof address === "string") {
+                const error = new Error(` expect a tcp address after binding port ${port}`)
+                detachStartupListener()
+
+                if(!httpServer.listening){
+                    reject(error)
+                    return
+                }
+                try{
+
+                }catch{
+                    
+                }
+            }
         }
-        httpServer.once('listening', onListening)
-        httpServer.once('error', onError)
-        httpServer.listen(port)
     })
+
+}
