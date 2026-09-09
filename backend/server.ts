@@ -7,6 +7,7 @@ import {createServer, type Server} from "node:http";
 import {setTimeout as delay} from "node:timers/promises";
 import {logger} from "@utils/logger.js";
 import {isShuttingDown} from "@shared/lifeCycle.js";
+import type {AddressInfo} from "node:net";
 
 
 const connection_checking_interval = 5000;
@@ -25,7 +26,7 @@ const listen_errors: Readonly<Record<string, string>> = {
 
 let server: Server | null = null;
 let httpClosePromise: Promise<void> | null = null;
-let listenPromise: Promise<void> | null = null;
+let listenPromise: Promise<AddressInfo> | null = null;
 let exitPromise: Promise<never> | null = null;
 let pendingExitCode = 0;
 let drainController: AbortController | null = null;
@@ -95,7 +96,7 @@ const initiateShutdown = (reason: string, exitCode: number): void => {
 const shutdown = async (reason: string, exitCode: number): Promise<void> => {
     if (exitCode !== 0 && pendingExitCode === 0) pendingExitCode = exitCode;
     if (isShuttingDown()) {
-        shuttingDown = true;
+        // shuttingDown = true;
         logger.info({reason, exitCode}, "shutting down");
         if (pendingExitCode === 0 && drainDelay > 0) {
             logger.info({drainDelay: drainDelay}, "draining before shutting down");
@@ -207,14 +208,15 @@ const startServer = async (): Promise<void> => {
     httpServer.headersTimeout = headers_timeout;
     httpServer.requestTimeout = req_timeout;
     if (isShuttingDown()) return;
-    const httpServerError = (err:Error) : void =>{
+    const onServerError = (err:Error) : void =>{
         logSafely("fatal", {err}, "server encountered a fatal error");
         initiateShutdown("serverError", 1);
 
     }
-    const pendingListen = (listenPromise = listenServer(httpServer, env.PORT));
+    const pendingListen = (listenPromise = listenServer(httpServer, env.PORT, onServerError));
+    let address : AddressInfo
     try {
-        await pendingListen;
+        address = await pendingListen;
     } finally {
         if (listenPromise === pendingListen) listenPromise = null;
     }
