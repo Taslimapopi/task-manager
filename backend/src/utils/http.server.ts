@@ -2,7 +2,7 @@ import type {Server} from "node:http";
 import type {AddressInfo} from "node:net";
 
 
-
+const idle_sweep_interval = 100
 type ServerErrorHandler = (err: Error) => void
 export const listenServer = (httpServer: Server, port: number, onRunTimeError?: ServerErrorHandler): Promise<AddressInfo> =>
     new Promise<AddressInfo>((resolve, reject) => {
@@ -45,4 +45,22 @@ export const listenServer = (httpServer: Server, port: number, onRunTimeError?: 
             reject(err)
         }
     })
+
+export const closeServer = async (httpServer : Server) : Promise<boolean> =>{
+    if(!httpServer.listening) return false
+     const idleSweeper = setInterval(()=>{
+     httpServer.closeIdleConnections()
+
+     }, idle_sweep_interval)
+    try {
+        await new Promise<void>((resolve, reject) => {
+            httpServer.close((err) => (err ? reject(err) : resolve()));
+            httpServer.closeIdleConnections();
+        });
+    } finally {
+        clearInterval(idleSweeper);
+    }
+    return true;
+
+}
 

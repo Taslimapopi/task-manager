@@ -1,12 +1,12 @@
 import {app} from "@app";
 import {connectDb, disconnectDb} from "@config/db.js";
 import {env} from "@config/env.js";
-import {listenServer} from "@utils/http.server.js";
+import {closeServer, listenServer} from "@utils/http.server.js";
 
 import {createServer, type Server} from "node:http";
 import {setTimeout as delay} from "node:timers/promises";
 import {logger} from "@utils/logger.js";
-import {isShuttingDown} from "@shared/lifeCycle.js";
+import {beginShutdown, isShuttingDown} from "@shared/lifeCycle.js";
 import type {AddressInfo} from "node:net";
 
 
@@ -30,8 +30,18 @@ let listenPromise: Promise<AddressInfo> | null = null;
 let exitPromise: Promise<never> | null = null;
 let pendingExitCode = 0;
 let drainController: AbortController | null = null;
+type cleanUpStep = readonly [label: string, close: () => void | Promise<void>]
 
-const abortGracefullShutDown = () => {
+const runCleanupStep = async ([label, close]: cleanUpStep): Promise<void> => {
+    try {
+        await close()
+    } catch (err) {
+        pendingExitCode = 1
+        logSafely('error', { err }, `Failed to close ${label}`)
+    }
+}
+
+const abortGracefulShutDown = () => {
     drainController?.abort()
     server?.closeAllConnections()
 }
@@ -57,21 +67,17 @@ const closeHttpServer = async (): Promise<void> => {
     const activeServer = server;
     if (!activeServer) return;
     httpClosePromise = (async (): Promise<void> => {
-        if (listenPromise) await listenPromise;
-        if (activeServer?.listening) return;
-        const idleSweeper = setInterval(() => {
-            activeServer?.closeIdleConnections;
-        }, idle_sweep_interval);
+        let listenError: unknown
         try {
-            await new Promise<void>((resolve, reject) => {
-                activeServer?.close((err) => (err ? reject(err) : resolve()));
-            });
-        } finally {
-            clearInterval(idleSweeper);
+            if (listenPromise) await listenPromise;
+        } catch (err) {
+            listenError = err
         }
-        logger.info("http server closed");
-    })();
-    return httpClosePromise;
+        if (await closeServer(activeServer)) logSafely('info', {}, 'http server closed')
+
+        if (listenError) throw listenError
+    })()
+    return httpClosePromise
 };
 
 const listen = (httpServer: Server, port: number) => {
@@ -94,58 +100,42 @@ const initiateShutdown = (reason: string, exitCode: number): void => {
 };
 
 const shutdown = async (reason: string, exitCode: number): Promise<void> => {
-    if (exitCode !== 0 && pendingExitCode === 0) pendingExitCode = exitCode;
+    if (exitCode !== 0 && pendingExitCode === 0) pendingExitCode = exitCode
     if (isShuttingDown()) {
-        // shuttingDown = true;
-        logger.info({reason, exitCode}, "shutting down");
-        if (pendingExitCode === 0 && drainDelay > 0) {
-            logger.info({drainDelay: drainDelay}, "draining before shutting down");
-            drainController = new AbortController();
-            try {
-                await delay(drainDelay, undefined, {signal: drainController.signal});
-            } catch (err) {
-                if (!drainController.signal.aborted) throw err;
-            } finally {
-                drainController = null;
-            }
-        }
-        if (pendingExitCode !== 0) server?.closeAllConnections();
-        const steps: ReadonlyArray<
-            readonly [label: string, close: () => Promise<void>]
-        > = [
-            ["HTTP server", closeHttpServer],
-            ["connect db", disconnectDb]
-
-        ];
-        const forceTimer = setTimeout(() => {
-            server?.closeAllConnections();
-            try {
-                logger.error(
-                    {timeoutMs: shutdownTimeOut},
-                    "gracefully shutdown time out, forcing exit",
-                );
-            } catch {
-            }
-        }, shutdownTimeOut);
-        for (const [label, close] of steps) {
-            try {
-                await close();
-            } catch (err) {
-                pendingExitCode = 1;
-                logger.error({err}, `Failed to close ${label}`);
-            }
-        }
-        clearTimeout(forceTimer);
-        await exitAfterFlush(pendingExitCode)
-    } else {
         if (exitCode !== 0) {
-            drainController?.abort();
-            server?.closeAllConnections();
-            logger.error({reason, exitCode}, "fatal error during shutdown");
+            abortGracefulShutDown()
+            logSafely('error', {reason, exitCode}, 'fatal error during shutdown')
         }
-        return;
+        return
     }
-};
+    beginShutdown()
+
+    logSafely('info', { reason, exitCode }, 'Shutting down')
+
+    if (pendingExitCode === 0 && drainDelay > 0) {
+        logSafely('info', {drainDelay: drainDelay}, 'Draining before closing listener')
+        drainController = new AbortController()
+        try {
+            await delay(drainDelay, undefined, {signal: drainController.signal})
+        } catch (err) {
+            if (!drainController.signal.aborted) throw err
+        } finally {
+            drainController = null
+        }
+    }
+    if (pendingExitCode !== 0) server?.closeAllConnections()
+
+    const forceTimer = setTimeout(() => {
+        server?.closeAllConnections()
+        logSafely('error', {timeout: shutdownTimeOut}, 'graceful shutdown timedout and forcing exit')
+        void exitAfterFlush(1)
+    }, shutdownTimeOut)
+
+    await runCleanupStep(['HTTP server', closeHttpServer])
+    await  runCleanupStep(['database connection', disconnectDb])
+    clearTimeout(forceTimer)
+    await exitAfterFlush(pendingExitCode)
+}
 
 const exitAfterFlush = (code: number): Promise<never> => {
     if (code !== 0) pendingExitCode = code;
@@ -180,7 +170,7 @@ const attachProcessHandlers = (): void => {
         process.on(signal, () => {
             if (isShuttingDown()) {
                 pendingExitCode = 1
-                abortGracefullShutDown()
+                abortGracefulShutDown()
                 logSafely('warn', {signal}, "Repeated termination signal — forcing exit")
                 void exitAfterFlush(1)
                 return
@@ -208,13 +198,13 @@ const startServer = async (): Promise<void> => {
     httpServer.headersTimeout = headers_timeout;
     httpServer.requestTimeout = req_timeout;
     if (isShuttingDown()) return;
-    const onServerError = (err:Error) : void =>{
+    const onServerError = (err: Error): void => {
         logSafely("fatal", {err}, "server encountered a fatal error");
         initiateShutdown("serverError", 1);
 
     }
     const pendingListen = (listenPromise = listenServer(httpServer, env.PORT, onServerError));
-    let address : AddressInfo
+    let address: AddressInfo
     try {
         address = await pendingListen;
     } finally {
@@ -230,7 +220,7 @@ const startServer = async (): Promise<void> => {
     });
     logger.info(
         {
-            port: env.PORT,
+            port: address.port,
             env: env.NODE_ENV,
             pid: process.pid,
             node: process.version,
