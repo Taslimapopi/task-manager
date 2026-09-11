@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {envSchema} from "@config/env/schema.js";
 
 
 const parsed = envSchema.safeParse(process.env);
