@@ -92,7 +92,6 @@ const listen = (httpServer: Server, port: number) => {
 const initiateShutdown = (reason: string, exitCode: number): void => {
     void shutdown(reason, exitCode).catch((err: unknown) => {
         pendingExitCode = 1;
-       abortGracefulShutDown()
         logSafely("fatal", {err, reason}, "shutdown failed");
         void exitAfterFlush(1);
     });
