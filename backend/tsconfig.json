@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2025",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["ES2025"],
+    "types": ["node"],
+    "rootDir": "./",
+    "outDir": "./dist",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@app": ["./src/app.ts"],
+      "@modules/*": ["./src/modules/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@config/*": ["./src/config/*"],
+      "@middlewares/*": ["./src/middlewares/*"],
+      "@routes/*": ["./src/routes/*"],
+      "@dts/*": ["./src/types/*"],
+      "@utils/*": ["./src/utils/*"]
+    }
+  },
+  "include": ["server.ts", "src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
