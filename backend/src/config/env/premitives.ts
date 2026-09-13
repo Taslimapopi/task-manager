@@ -1,1 +1,1 @@
-export const integerFromEnv = () =>{}
+export const integerFromEnv = (fallback : number, bounds : integerBounds) =>{}

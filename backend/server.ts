@@ -13,7 +13,7 @@ import type {AddressInfo} from "node:net";
 const connection_checking_interval = 5000;
 const keep_alive_timeout = 65000;
 const headers_timeout = 30000;
-const req_timeout = 30000;
+const req_timeout = 30000;``
 const drainDelay = env.isProduction ? 5000 : 0;
 const shutdownTimeOut = 35000;
 const logFlushTimeOut = 500;
