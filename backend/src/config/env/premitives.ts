@@ -9,6 +9,10 @@ const assertIntegerConfiguration = (fallback: number, {min, max}: IntegerBounds)
     }
 }
 
+const blankAsAbsent = () =>{}
+
 export const integerFromEnv = (fallback : number, bounds : IntegerBounds) =>{
     assertIntegerConfiguration(fallback,bounds)
+    const {min, max} = bounds
+    return blankAsAbsent()
 }
