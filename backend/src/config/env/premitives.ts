@@ -18,9 +18,17 @@ const blankToUndefined = (value: unknown, mode: 'trim' | 'preserve'): unknown =>
     return mode === 'trim' ? trimmed : value
 }
 
-const blankAsAbsent = <T extends z.ZodType>(schema : T) =>{
-    z.preprocess(value => blankToUndefined(value,'trim'),schema.optional())
+const reject = (ctx: {addIssue: z.core.$RefinementCtx['addIssue']}, message: string): void => {
+    ctx.addIssue({code: 'custom', message, continue: true})
 }
+
+
+const blankAsAbsent = <T extends z.ZodType>(schema: T) =>
+    z.preprocess(value => blankToUndefined(value, 'trim'), schema.optional())
+        .transform((value, ctx) => {
+            if (value === undefined) reject(ctx, 'is required')
+            return value
+        }) as unknown as z.ZodPreprocess<T>
 
 export const integerFromEnv = (fallback : number, bounds : IntegerBounds) =>{
     assertIntegerConfiguration(fallback,bounds)
