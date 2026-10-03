@@ -1,4 +1,4 @@
-import {Schema} from "mongoose";
+import {model, Schema} from "mongoose";
 
 const userSchema = new Schema({
     name: {
@@ -27,3 +27,5 @@ const userSchema = new Schema({
         timestamps: true,
         versionKey: false,
     })
+
+export const User = model("User", userSchema);
