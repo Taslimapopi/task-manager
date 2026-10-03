@@ -1,25 +1,11 @@
-import {z} from "zod";
-import {envSchema} from "@config/env/schema.js";
+const MONGODB_URI = process.env.MONGODB_URI
 
-
-const parsed = envSchema.safeParse(process.env);
-
-if (!parsed.success) {
-  console.error("invalid environment variable", z.treeifyError(parsed.error));
-  process.exit(1);
+if (!MONGODB_URI) {
+  throw new Error('MONGODB_URI is missing in .env')
 }
 
-const data = parsed.data
-
-export type parsedEnv = z.infer<typeof envSchema>
-
-export type Env = Readonly<parsedEnv & {
-  readonly isDevelopment : boolean,
-  readonly isProduction : boolean
-}>
-
-export const env: Env = Object.freeze({ 
-  ...data ,
-  isDevelopment : data.NODE_ENV === 'development',
-  isProduction : data.NODE_ENV === 'production'
-});
+export const env = {
+  NODE_ENV: process.env.NODE_ENV ?? 'development',
+  PORT: Number(process.env.PORT ?? 3000),
+  MONGODB_URI
+}
