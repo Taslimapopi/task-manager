@@ -1,0 +1,20 @@
+{
+  "name": "@task-vault/shared",
+  "version": "1.0.0",
+  "private": true,
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "exports": {
+    "./constants": {
+      "types": "./src/constants.ts",
+      "import": "./src/constants.ts"
+    }
+  },
+  "type": "module",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
