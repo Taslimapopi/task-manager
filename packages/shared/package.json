@@ -1,5 +1,5 @@
 {
-  "name": "@task-vault/shared",
+  "name": "@task-manager/shared",
   "version": "1.0.0",
   "private": true,
   "sideEffects": false,
